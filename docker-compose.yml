@@ -1,0 +1,60 @@
+# Local development stack: Postgres (Supabase image) + GoTrue (auth) + PostgREST + gateway.
+# Usage: npm run db:up && npm run db:migrate   (see docs/DEPLOYMENT.md)
+# Production uses hosted Supabase — this file is for local development and CI only.
+services:
+  db:
+    image: supabase/postgres:15.8.1.060
+    environment:
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-local-dev-password}
+      JWT_SECRET: ${LOCAL_JWT_SECRET:-local-dev-jwt-secret-change-me-at-least-32-chars}
+    ports: ["54322:5432"]
+    volumes:
+      - ./supabase/local/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
+      - kairo-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 3s
+      retries: 30
+
+  auth:
+    image: supabase/gotrue:v2.170.0
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:54321/auth/v1
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${LOCAL_DB_PASSWORD:-local-dev-password}@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3000/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated   # sets role=authenticated in JWTs
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${LOCAL_JWT_SECRET:-local-dev-jwt-secret-change-me-at-least-32-chars}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"   # local only — production must confirm emails
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: 100
+
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${LOCAL_DB_PASSWORD:-local-dev-password}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${LOCAL_JWT_SECRET:-local-dev-jwt-secret-change-me-at-least-32-chars}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on: [auth, rest]
+    ports: ["54321:8000"]
+    volumes:
+      - ./supabase/local/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  kairo-db:

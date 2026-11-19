@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Kairo Systems design tokens
+   Ink (charcoal → black) surfaces, Signal (electric blue) primary,
+   Aura (violet) secondary accent used sparingly for depth.
+   ========================================================================== */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-ink-950: #050608;
+  --color-ink-900: #090b0f;
+  --color-ink-850: #0d1015;
+  --color-ink-800: #11151b;
+  --color-ink-750: #161b23;
+  --color-ink-700: #1c222c;
+  --color-line: #232a35;
+  --color-line-strong: #2f3846;
+
+  --color-fg: #eef1f6;
+  --color-muted: #9aa4b4;
+  --color-subtle: #677183;
+
+  --color-signal-300: #8cbcff;
+  --color-signal-400: #5c9dff;
+  --color-signal-500: #2f7bff;
+  --color-signal-600: #1a62e8;
+  --color-aura-400: #a48bff;
+  --color-aura-500: #8467ff;
+
+  --color-success: #3ccf91;
+  --color-warning: #f2b544;
+  --color-danger: #ff5c6c;
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-dot: pulse-dot 2s ease-in-out infinite;
+  --animate-flow: flow 2.4s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.85); }
+  }
+  @keyframes flow {
+    from { stroke-dashoffset: 24; }
+    to { stroke-dashoffset: 0; }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-ink-950);
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-signal-500) 40%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-signal-400);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .surface {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-ink-800) 92%, white 0%), var(--color-ink-850));
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-2xl);
+  }
+  .surface-raised {
+    background: var(--color-ink-800);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
+  }
+  .glow-ring {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-signal-500) 35%, transparent),
+      0 0 40px -8px color-mix(in srgb, var(--color-signal-500) 45%, transparent);
+  }
+  .text-gradient {
+    background: linear-gradient(100deg, #ffffff 10%, var(--color-signal-300) 55%, var(--color-aura-400) 95%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .grid-backdrop {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+  }
+  .hero-aura {
+    background:
+      radial-gradient(600px 300px at 50% -40px, color-mix(in srgb, var(--color-signal-500) 28%, transparent), transparent 70%),
+      radial-gradient(500px 260px at 85% 10%, color-mix(in srgb, var(--color-aura-500) 18%, transparent), transparent 70%);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-signal-300);
+  }
+  .prose-legal h2 { font-size: 1.25rem; font-weight: 600; margin-top: 2.25rem; margin-bottom: 0.75rem; color: var(--color-fg); }
+  .prose-legal h3 { font-size: 1.05rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-fg); }
+  .prose-legal p, .prose-legal li { color: var(--color-muted); line-height: 1.75; margin-bottom: 0.75rem; }
+  .prose-legal ul { list-style: disc; padding-left: 1.25rem; }
+  .prose-legal a { color: var(--color-signal-300); text-decoration: underline; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  html, body { background: #fff !important; color: #111 !important; }
+  .no-print { display: none !important; }
+  .print-plain { background: #fff !important; border-color: #ddd !important; color: #111 !important; box-shadow: none !important; }
+  .print-plain * { color: #111 !important; }
+}
