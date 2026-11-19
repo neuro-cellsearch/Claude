@@ -50,7 +50,7 @@ export default async function EnquiryDetail(props: PageProps<"/admin/enquiries/[
               <input type="hidden" name="enquiry_id" value={id} />
               <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
                 <Select name="type" defaultValue="note"><option value="note">Note</option><option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option></Select>
-                <div><Label>Next follow-up (optional)</Label><Input type="datetime-local" name="next_follow_up_at" /></div>
+                <div><Label htmlFor="next_follow_up_at">Next follow-up (optional)</Label><Input id="next_follow_up_at" type="datetime-local" name="next_follow_up_at" /></div>
               </div>
               <Textarea name="body" placeholder="What happened?" className="min-h-[80px]" />
             </ActionForm>

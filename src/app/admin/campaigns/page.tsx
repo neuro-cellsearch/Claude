@@ -18,9 +18,9 @@ export default async function CampaignsPage() {
       <Card className="mb-6">
         <CardHeader title="New campaign" />
         <form action={createCampaign} className="grid gap-3 sm:grid-cols-[1fr_1fr_120px_auto] sm:items-end">
-          <div><Label>Name</Label><Input name="name" placeholder="Leeds roofers — November" required /></div>
-          <div><Label>Template</Label><Select name="template_id">{(templates ?? []).map((t) => <option key={t.id} value={t.id}>{t.name} ({t.channel})</option>)}</Select></div>
-          <div><Label>Daily limit</Label><Input name="daily_limit" type="number" min={1} max={200} defaultValue={25} /></div>
+          <div><Label htmlFor="c-name">Name</Label><Input id="c-name" name="name" placeholder="Leeds roofers — November" required /></div>
+          <div><Label htmlFor="c-template">Template</Label><Select id="c-template" name="template_id">{(templates ?? []).map((t) => <option key={t.id} value={t.id}>{t.name} ({t.channel})</option>)}</Select></div>
+          <div><Label htmlFor="c-limit">Daily limit</Label><Input id="c-limit" name="daily_limit" type="number" min={1} max={200} defaultValue={25} /></div>
           <Button>Create</Button>
         </form>
       </Card>

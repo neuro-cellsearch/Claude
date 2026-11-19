@@ -71,11 +71,11 @@ export default async function CustomerDetail(props: PageProps<"/admin/customers/
                         <ActionForm action={updateAutomationConfig} submitLabel="Save config" size="sm" variant="secondary" className="mt-3">
                           <input type="hidden" name="id" value={a.id} />
                           <div className="grid grid-cols-2 gap-2">
-                            <div><Label>Engine</Label><Select name="provider" defaultValue={a.provider}>{["n8n", "make", "vapi", "retell", "custom"].map((p) => <option key={p}>{p}</option>)}</Select></div>
-                            <div><Label>Workflow ID</Label><Input name="external_workflow_id" defaultValue={a.external_workflow_id ?? ""} /></div>
+                            <div><Label htmlFor={`prov-${a.id}`}>Engine</Label><Select id={`prov-${a.id}`} name="provider" defaultValue={a.provider}>{["n8n", "make", "vapi", "retell", "custom"].map((p) => <option key={p}>{p}</option>)}</Select></div>
+                            <div><Label htmlFor={`wf-${a.id}`}>Workflow ID</Label><Input id={`wf-${a.id}`} name="external_workflow_id" defaultValue={a.external_workflow_id ?? ""} /></div>
                           </div>
-                          <div><Label hint="(HTTPS)">Test webhook URL</Label><Input name="test_webhook_url" defaultValue={cfg.test_webhook_url ?? ""} placeholder="https://n8n.example.com/webhook-test/…" /></div>
-                          <div><Label>Build notes</Label><Textarea name="notes" className="min-h-[60px]" defaultValue={cfg.notes ?? ""} /></div>
+                          <div><Label htmlFor={`twh-${a.id}`} hint="(HTTPS)">Test webhook URL</Label><Input id={`twh-${a.id}`} name="test_webhook_url" defaultValue={cfg.test_webhook_url ?? ""} placeholder="https://n8n.example.com/webhook-test/…" /></div>
+                          <div><Label htmlFor={`bn-${a.id}`}>Build notes</Label><Textarea id={`bn-${a.id}`} name="notes" className="min-h-[60px]" defaultValue={cfg.notes ?? ""} /></div>
                           <p className="text-[11.5px] text-subtle">Event callback: {site.url}/api/automations/events · automation_id above</p>
                         </ActionForm>
                       </details>

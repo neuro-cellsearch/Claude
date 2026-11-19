@@ -32,8 +32,8 @@ export default async function SettingsPage() {
             <ActionForm key={p.id} action={updatePlanPricing} submitLabel="Save" size="sm" variant="secondary" className="flex flex-wrap items-end gap-2 space-y-0">
               <input type="hidden" name="id" value={p.id} />
               <p className="w-20 pb-2 text-[13px] font-medium text-fg">{p.name}</p>
-              <div><Label>Setup £</Label><Input name="setup" type="number" defaultValue={p.setup_fee_pence / 100} className="w-28" /></div>
-              <div><Label>Monthly £</Label><Input name="monthly" type="number" defaultValue={p.monthly_pence / 100} className="w-28" /></div>
+              <div><Label htmlFor={`setup-${p.id}`}>Setup £</Label><Input id={`setup-${p.id}`} name="setup" type="number" defaultValue={p.setup_fee_pence / 100} className="w-28" /></div>
+              <div><Label htmlFor={`monthly-${p.id}`}>Monthly £</Label><Input id={`monthly-${p.id}`} name="monthly" type="number" defaultValue={p.monthly_pence / 100} className="w-28" /></div>
               <p className="pb-2 text-[11.5px] text-subtle">now {gbp(p.setup_fee_pence)} + {gbp(p.monthly_pence)}/mo</p>
             </ActionForm>
           ))}</div>
