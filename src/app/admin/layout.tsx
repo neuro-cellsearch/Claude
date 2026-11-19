@@ -5,6 +5,8 @@ import { hasServiceRole } from "@/lib/env";
 import { Notice } from "@/components/ui/primitives";
 
 export const metadata = { title: "Admin", robots: { index: false } };
+// Per-user, per-request data: never prerender (also keeps builds working before Supabase is configured).
+export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireStaff();

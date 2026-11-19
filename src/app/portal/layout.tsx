@@ -3,6 +3,7 @@ import { getPortalContext } from "./context";
 import { isStaffRole } from "@/lib/auth";
 
 export const metadata = { title: "Client portal", robots: { index: false } };
+export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const { profile, org, supabase } = await getPortalContext();
