@@ -61,7 +61,7 @@ const TRANSITIONS: Record<string, string[]> = {
   requested: ["in_build", "retired"],
   in_build: ["testing", "retired"],
   testing: ["in_build", "awaiting_approval", "failed"],
-  awaiting_approval: ["testing", "in_build"],
+  awaiting_approval: ["testing", "in_build", "active"],
   active: ["paused"],
   paused: ["active", "in_build", "retired"],
   failed: ["in_build", "testing", "retired"],
