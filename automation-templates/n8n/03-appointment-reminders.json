@@ -1,0 +1,240 @@
+{
+  "name": "Kairo \u00b7 24-hour appointment reminders",
+  "nodes": [
+    {
+      "id": "aa54a097-b5c0-5e38-a38d-f9145ab3e321",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2305e94f-918c-5de5-bb67-80a63ef0237f",
+      "name": "Next-day events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/calendar/v3/calendars/{{ encodeURIComponent($env.GOOGLE_CALENDAR_ID) }}/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "timeMin",
+              "value": "={{ new Date(Date.now() + 23*3600e3).toISOString() }}"
+            },
+            {
+              "name": "timeMax",
+              "value": "={{ new Date(Date.now() + 24*3600e3).toISOString() }}"
+            },
+            {
+              "name": "singleEvents",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "REPLACE",
+          "name": "Client Google Calendar"
+        }
+      }
+    },
+    {
+      "id": "15f3c9b5-efac-5224-a6a5-bee0c211803b",
+      "name": "Extract attendees",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Expects the attendee mobile in the event description as 'Phone: +44\u2026' (set by the booking automation).\nconst out = [];\nfor (const e of $input.first().json.items || []) {\n  const phone = (e.description || '').match(/Phone:\\s*(\\+?[0-9 ]{10,15})/)?.[1]?.replace(/\\s/g, '');\n  if (!phone || e.status === 'cancelled') continue;\n  out.push({ json: { id: e.id, title: e.summary, start: e.start.dateTime || e.start.date, phone, isTest: false } });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "c177e831-8575-5bd1-afaa-a6692e7fa2dd",
+      "name": "Send reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.phone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $env.TWILIO_FROM_NUMBER }}"
+            },
+            {
+              "name": "Body",
+              "value": "=Reminder: {{ $json.title }} with {{ $env.BUSINESS_NAME }} on {{ new Date($json.start).toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'long', hour: '2-digit', minute: '2-digit' }) }}. Need to change it? Reply to this message."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE",
+          "name": "Twilio (Account SID / Auth Token)"
+        }
+      }
+    },
+    {
+      "id": "e6ede97a-8644-55fe-a5d9-dae81d9a0ddf",
+      "name": "Sign event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst items = $('Extract attendees').all();\nreturn items.map((it) => {\n  const d = it.json;\n  const body = JSON.stringify({ automation_id: $env.KAIRO_AUTOMATION_ID_REMINDERS, event_type: 'appointment.reminder_sent', summary: `Reminder sent: ${d.title}`.slice(0, 480), external_event_id: `rem-${d.id}`, appointment: { title: d.title, starts_at: new Date(d.start).toISOString(), status: 'confirmed', external_id: d.id } });\n  const ts = Math.floor(Date.now() / 1000).toString();\n  return { json: { body, ts, sig: crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex') } };\n});"
+      }
+    },
+    {
+      "id": "e11f7674-6f1b-57a9-b9ce-c1b91bda9f9d",
+      "name": "Report to Kairo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KAIRO_BASE_URL }}/api/automations/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Kairo-Timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "X-Kairo-Signature",
+              "value": "=sha256={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Next-day events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next-day events": {
+      "main": [
+        [
+          {
+            "node": "Extract attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract attendees": {
+      "main": [
+        [
+          {
+            "node": "Send reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder": {
+      "main": [
+        [
+          {
+            "node": "Sign event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign event": {
+      "main": [
+        [
+          {
+            "node": "Report to Kairo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "kairo": "Env: GOOGLE_CALENDAR_ID, BUSINESS_NAME, KAIRO_AUTOMATION_ID_REMINDERS, KAIRO_*, TWILIO_*. Test by running manually against a calendar containing a test event with your own number."
+  },
+  "tags": [
+    {
+      "name": "kairo"
+    }
+  ]
+}

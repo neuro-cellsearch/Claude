@@ -1,0 +1,133 @@
+{
+  "name": "Kairo \u00b7 AI receptionist call report",
+  "nodes": [
+    {
+      "id": "285e67db-22a0-579c-8873-576ac2d6e13c",
+      "name": "Voice platform end-of-call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairo/voice-call-report",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "1459dc21-550a-5c0d-b701-8ae2e4775ccc",
+      "name": "Verify & normalise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Verifies Kairo's HMAC signature on test calls and normalises the payload.\n// Requires: NODE_FUNCTION_ALLOW_BUILTIN=crypto and env var KAIRO_WEBHOOK_SECRET on the n8n host.\nconst crypto = require('crypto');\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst body = item.body || {};\nconst isTest = headers['x-kairo-test'] === 'true' || body.test === true;\nif (isTest) {\n  const ts = headers['x-kairo-timestamp'];\n  const sig = (headers['x-kairo-signature'] || '').replace('sha256=', '');\n  const expected = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${JSON.stringify(body)}`).digest('hex');\n  if (!ts || Math.abs(Date.now() / 1000 - Number(ts)) > 300 || sig !== expected) throw new Error('Invalid Kairo test signature');\n}\n// Map your voice platform's end-of-call payload (Vapi, Retell, etc.) to a common shape.\n// Verify the platform's own webhook secret header here in production.\nconst m = body.message || body;\nconst call = isTest ? { id: 'TEST', customerNumber: '+447700900000', summary: 'Test call: caller asked about opening hours', structured: { name: 'Test Caller', wants_booking: false } } : {\n  id: m.call?.id || m.call_id, customerNumber: m.call?.customer?.number || m.from_number, summary: m.analysis?.summary || m.call_analysis?.call_summary || '', structured: m.analysis?.structuredData || m.call_analysis?.custom_analysis_data || {} };\nreturn [{ json: { ...call, isTest } }];"
+      }
+    },
+    {
+      "id": "e6ede97a-8644-55fe-a5d9-dae81d9a0ddf",
+      "name": "Sign event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Builds a signed activity event for the Kairo platform.\nconst crypto = require('crypto');\nconst d = $input.first().json;\nconst event = {\n  automation_id: $env.KAIRO_AUTOMATION_ID_RECEPTIONIST,\n  event_type: 'call.answered',\n  summary: `AI receptionist: ${d.summary || 'call handled'}`.slice(0, 480),\n  test: d.isTest === true,\n  external_event_id: `voice-${d.id}`,\n  lead: { name: d.structured?.name, phone: d.customerNumber, source: 'ai_receptionist', enquiry: d.summary },\n};\nconst body = JSON.stringify(event);\nconst ts = Math.floor(Date.now() / 1000).toString();\nconst sig = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex');\nreturn [{ json: { body, ts, sig, isTest: d.isTest === true, ...d } }];"
+      }
+    },
+    {
+      "id": "e11f7674-6f1b-57a9-b9ce-c1b91bda9f9d",
+      "name": "Report to Kairo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KAIRO_BASE_URL }}/api/automations/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Kairo-Timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "X-Kairo-Signature",
+              "value": "=sha256={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Voice platform end-of-call": {
+      "main": [
+        [
+          {
+            "node": "Verify & normalise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & normalise": {
+      "main": [
+        [
+          {
+            "node": "Sign event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign event": {
+      "main": [
+        [
+          {
+            "node": "Report to Kairo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "kairo": "Receives end-of-call reports from your voice AI platform and logs the call + lead in the client portal."
+  },
+  "tags": [
+    {
+      "name": "kairo"
+    }
+  ]
+}

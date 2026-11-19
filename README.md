@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kairo Systems — AI Automation Agency Platform
 
-## Getting Started
+A complete, deployable platform for running a UK AI-automation agency: a premium marketing website, customer acquisition system, client portal, administration dashboard, billing, onboarding, automation lifecycle management and financial planning — built on Next.js, Supabase, Stripe, OpenAI and n8n.
 
-First, run the development server:
+> **Status:** fully built and tested locally against a real Supabase-compatible stack (Postgres + GoTrue auth + PostgREST). Third-party integrations (Stripe, OpenAI, Resend, Twilio, n8n, HubSpot…) are implemented with real API calls but **need your credentials** before they work. Nothing in the platform reports an integration as working until a live API test passes. See [`docs/CREDENTIALS_CHECKLIST.md`](docs/CREDENTIALS_CHECKLIST.md).
+
+## What's included
+
+| Area | Highlights |
+|---|---|
+| **Website** | Home (with interactive workflow demo), 6 service sales pages, 8 industry pages, pricing, case studies (honest by design), about, contact, consultation booking, quote request, privacy, terms, unsubscribe |
+| **Acquisition** | Scored enquiry pipeline (board + table), built-in consultation calendar (UK time/DST aware), AI website assistant with consented lead capture, staff notifications, follow-up email sequences, proposal generator (template + optional AI), public proposal acceptance |
+| **Outbound** | Prospect database with lawful-basis fields, PECR/TPS compliance gating, 18 outreach templates (cold email, LinkedIn, phone × 6 industries), campaigns with per-message review and admin approval, daily send limits, suppression list |
+| **Client portal** | Registration, onboarding wizard, automation status timeline, activity log, leads (status updates + CSV export), appointments, analytics charts, business details, billing via Stripe, support tickets, automation requests, GDPR export/deletion |
+| **Admin** | KPI overview (MRR, ARR, ARPA, churn, LTV, pipeline value, net-profit target), revenue/MRR/acquisition/profit charts, customers, onboarding tracker, automation lifecycle (build → test → approve → activate), support desk, subscriptions & payments, finance with editable expenses + forecast calculator (5/10/15/20/30 scenarios, UK corporation tax), case studies/testimonials, integrations status with live tests, team roles, pricing, GDPR requests, audit log |
+| **Automation engine** | Signed event API for n8n/Make/voice platforms; four importable n8n templates (website lead + AI qualification, missed-call text-back, appointment reminders, AI receptionist call report) |
+| **Security** | Row-level security on every table, column-level grants, DB-enforced "no activation without test + approval", AES-256-GCM credential encryption, HMAC webhooks, rate limiting, CSP and security headers, audit log, hashed IPs |
+
+## Quick start (local)
+
+Requirements: Node 20.9+, Docker, `psql`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run db:up            # Postgres + Supabase Auth + PostgREST + gateway on :54321
+npm run env:local        # writes .env.local with local keys (never use in production)
+npm run db:migrate       # applies supabase/migrations/*
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create your admin account: register at `/register`, then `npm run admin:grant -- you@yourdomain.co.uk`, and sign in at `/login` → you'll land on `/admin`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test                 # 32 unit tests: tax/forecast maths, scoring, DST-safe slots, PECR rules, encryption
+npm run build && npm start &
+npm run test:e2e         # 15 end-to-end browser tests against the running app + local stack
+```
 
-## Learn More
+The E2E suite drives real user journeys: booking a consultation, requesting a quote, registering and onboarding, credential encryption, admin pipeline, proposal acceptance, the full automation lifecycle (including the database refusing an untested activation), HMAC-signed automation events creating leads, finance, compliance-gated outreach campaigns, unsubscribe handling and protected endpoints.
 
-To learn more about Next.js, take a look at the following resources:
+## Documentation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Document | Contents |
+|---|---|
+| [`docs/BRAND.md`](docs/BRAND.md) | Name, logo concept, colour, typography, voice and messaging |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Stack choice and costs, structure, data model, security model |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Production deployment (Supabase + Vercel), cron, backups, monitoring |
+| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Setting up every provider; automation event API; n8n templates |
+| [`docs/BUSINESS_PLAN.md`](docs/BUSINESS_PLAN.md) | Offer, pricing logic, the path to £10k/month net profit, acquisition plan |
+| [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) | UK GDPR, PECR, TPS, AI transparency, advertising rules — and how the platform enforces them |
+| [`docs/CREDENTIALS_CHECKLIST.md`](docs/CREDENTIALS_CHECKLIST.md) | Everything that needs your credentials, decisions or manual approval |
+| [`automation-templates/README.md`](automation-templates/README.md) | Importing and testing the n8n workflows |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project structure
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/
+    (marketing)/        public website + public form actions
+    (auth)/             login, register, password reset
+    portal/             client portal (RLS-scoped to the customer's organisation)
+    admin/              admin dashboard; _actions/ holds all privileged server actions
+    api/                chat, slots, Stripe webhook, automation events, cron, health
+    proposal/[token]/   public proposal view & acceptance
+  components/           ui primitives, marketing, dashboard (charts, shell, forecast calculator)
+  lib/                  auth, supabase clients, integrations/*, sales/*, finance, scoring, slots, crypto…
+supabase/migrations/    schema, RLS & grants, reference data (plans, templates, sequences)
+automation-templates/   n8n workflow JSON
+scripts/                migrate, local env generator, grant admin
+tests/                  unit (vitest) and e2e (playwright)
+```

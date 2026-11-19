@@ -1,0 +1,275 @@
+{
+  "name": "Kairo \u00b7 Missed-call text-back",
+  "nodes": [
+    {
+      "id": "a72ba4e7-fb22-5c76-b7c6-b9c97011ba80",
+      "name": "Twilio call status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairo/missed-call",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "1459dc21-550a-5c0d-b701-8ae2e4775ccc",
+      "name": "Verify & normalise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Verifies Kairo's HMAC signature on test calls and normalises the payload.\n// Requires: NODE_FUNCTION_ALLOW_BUILTIN=crypto and env var KAIRO_WEBHOOK_SECRET on the n8n host.\nconst crypto = require('crypto');\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst body = item.body || {};\nconst isTest = headers['x-kairo-test'] === 'true' || body.test === true;\nif (isTest) {\n  const ts = headers['x-kairo-timestamp'];\n  const sig = (headers['x-kairo-signature'] || '').replace('sha256=', '');\n  const expected = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${JSON.stringify(body)}`).digest('hex');\n  if (!ts || Math.abs(Date.now() / 1000 - Number(ts)) > 300 || sig !== expected) throw new Error('Invalid Kairo test signature');\n}\n// Twilio posts form fields: From, To, CallStatus, CallSid. Validate X-Twilio-Signature in production (see README).\nconst call = isTest ? { From: '+447700900000', CallStatus: 'no-answer', CallSid: 'TEST' } : body;\nreturn [{ json: { from: call.From, status: call.CallStatus, sid: call.CallSid, isTest } }];"
+      }
+    },
+    {
+      "id": "b30247c1-a145-50f2-8b1e-80f3f279e336",
+      "name": "Missed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ['no-answer','busy','failed'].includes($json.status) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f185a1d7-1d4e-5043-aefd-c8e1c68701ac",
+      "name": "Not a test?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isTest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "bdf48eab-c15c-574c-89b8-681407d0c329",
+      "name": "Text caller back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.from }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $env.TWILIO_FROM_NUMBER }}"
+            },
+            {
+              "name": "Body",
+              "value": "=Sorry we missed your call to {{ $env.BUSINESS_NAME }} \u2014 we're probably on a job. Reply with what you need (and a photo if helpful) and we'll get back to you shortly. Reply STOP to opt out."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE",
+          "name": "Twilio (Account SID / Auth Token)"
+        }
+      }
+    },
+    {
+      "id": "e6ede97a-8644-55fe-a5d9-dae81d9a0ddf",
+      "name": "Sign event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Builds a signed activity event for the Kairo platform.\nconst crypto = require('crypto');\nconst d = $('Verify & normalise').first().json;\nconst event = {\n  automation_id: $env.KAIRO_AUTOMATION_ID_MISSED_CALL,\n  event_type: 'call.missed_text_back',\n  summary: `Missed call from ${String(d.from).slice(0, -3)}*** \u2014 text-back sent`,\n  test: d.isTest === true,\n  external_event_id: `call-${d.sid}`,\n  lead: { phone: d.from, source: 'missed_call' },\n};\nconst body = JSON.stringify(event);\nconst ts = Math.floor(Date.now() / 1000).toString();\nconst sig = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex');\nreturn [{ json: { body, ts, sig, isTest: d.isTest === true, ...d } }];"
+      }
+    },
+    {
+      "id": "e11f7674-6f1b-57a9-b9ce-c1b91bda9f9d",
+      "name": "Report to Kairo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KAIRO_BASE_URL }}/api/automations/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Kairo-Timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "X-Kairo-Signature",
+              "value": "=sha256={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Twilio call status": {
+      "main": [
+        [
+          {
+            "node": "Verify & normalise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & normalise": {
+      "main": [
+        [
+          {
+            "node": "Missed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Missed?": {
+      "main": [
+        [
+          {
+            "node": "Not a test?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not a test?": {
+      "main": [
+        [
+          {
+            "node": "Text caller back",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sign event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text caller back": {
+      "main": [
+        [
+          {
+            "node": "Sign event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign event": {
+      "main": [
+        [
+          {
+            "node": "Report to Kairo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "kairo": "Point the Twilio number's 'Call status changes' webhook at this URL. Env: BUSINESS_NAME, KAIRO_*, TWILIO_*. The text-back is a service message to someone who just called \u2014 not marketing."
+  },
+  "tags": [
+    {
+      "name": "kairo"
+    }
+  ]
+}

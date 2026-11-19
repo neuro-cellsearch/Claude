@@ -1,0 +1,331 @@
+{
+  "name": "Kairo \u00b7 Website lead capture & AI qualification",
+  "nodes": [
+    {
+      "id": "9a0022b7-a080-5796-b3a1-d30254c733a4",
+      "name": "Lead webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kairo/website-lead",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "1459dc21-550a-5c0d-b701-8ae2e4775ccc",
+      "name": "Verify & normalise",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Verifies Kairo's HMAC signature on test calls and normalises the payload.\n// Requires: NODE_FUNCTION_ALLOW_BUILTIN=crypto and env var KAIRO_WEBHOOK_SECRET on the n8n host.\nconst crypto = require('crypto');\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst body = item.body || {};\nconst isTest = headers['x-kairo-test'] === 'true' || body.test === true;\nif (isTest) {\n  const ts = headers['x-kairo-timestamp'];\n  const sig = (headers['x-kairo-signature'] || '').replace('sha256=', '');\n  const expected = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${JSON.stringify(body)}`).digest('hex');\n  if (!ts || Math.abs(Date.now() / 1000 - Number(ts)) > 300 || sig !== expected) throw new Error('Invalid Kairo test signature');\n}\nconst lead = isTest ? { name: 'Test Lead', email: 'test@example.com', phone: '', message: 'Test enquiry: roof leak in Leeds, need quote this week' } : body;\nreturn [{ json: { ...lead, isTest } }];"
+      }
+    },
+    {
+      "id": "6d88a02a-8ec4-5ebf-9094-fc006faf219c",
+      "name": "AI qualify (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: $env.OPENAI_MODEL || 'gpt-5-mini', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: 'You qualify inbound enquiries for a UK business. Return JSON: {\"service\":string,\"urgency\":\"low|medium|high\",\"location\":string|null,\"score\":0-100,\"summary\":string}. Use only facts in the message.' }, { role: 'user', content: $json.message || '' } ] }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE",
+          "name": "OpenAI (Authorization: Bearer sk-...)"
+        }
+      }
+    },
+    {
+      "id": "64be78bb-cefa-535f-aecc-6572000528e4",
+      "name": "Merge qualification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const lead = $('Verify & normalise').first().json;\nlet q = {};\ntry { q = JSON.parse($input.first().json.choices[0].message.content); } catch (e) { q = { score: 50, summary: lead.message }; }\nreturn [{ json: { ...lead, q } }];"
+      }
+    },
+    {
+      "id": "e6ede97a-8644-55fe-a5d9-dae81d9a0ddf",
+      "name": "Sign event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Builds a signed activity event for the Kairo platform.\nconst crypto = require('crypto');\nconst d = $input.first().json;\nconst event = {\n  automation_id: $env.KAIRO_AUTOMATION_ID_WEBSITE_LEAD,\n  event_type: 'lead.captured',\n  summary: `Website lead: ${d.name || 'Unknown'} \u2014 ${d.q.summary || ''}`.slice(0, 480),\n  test: d.isTest === true,\n  external_event_id: d.email ? `lead-${d.email}-${new Date().toISOString().slice(0,13)}` : undefined,\n  lead: { name: d.name, email: d.email || undefined, phone: d.phone || undefined, source: 'website_form', enquiry: d.message, score: Math.max(0, Math.min(100, Number(d.q.score) || 0)) },\n};\nconst body = JSON.stringify(event);\nconst ts = Math.floor(Date.now() / 1000).toString();\nconst sig = crypto.createHmac('sha256', $env.KAIRO_WEBHOOK_SECRET).update(`${ts}.${body}`).digest('hex');\nreturn [{ json: { body, ts, sig, isTest: d.isTest === true, ...d } }];"
+      }
+    },
+    {
+      "id": "e11f7674-6f1b-57a9-b9ce-c1b91bda9f9d",
+      "name": "Report to Kairo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KAIRO_BASE_URL }}/api/automations/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Kairo-Timestamp",
+              "value": "={{ $json.ts }}"
+            },
+            {
+              "name": "X-Kairo-Signature",
+              "value": "=sha256={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "f185a1d7-1d4e-5043-aefd-c8e1c68701ac",
+      "name": "Not a test?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isTest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "af74313c-2028-5ac2-aa8c-9be67cf556eb",
+      "name": "Hot lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Merge qualification').first().json.q.score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7b218255-d485-53f5-8588-f2457d5c2b21",
+      "name": "SMS owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $env.OWNER_MOBILE }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $env.TWILIO_FROM_NUMBER }}"
+            },
+            {
+              "name": "Body",
+              "value": "=New hot lead ({{ $('Merge qualification').first().json.q.score }}): {{ $('Merge qualification').first().json.name }} {{ $('Merge qualification').first().json.phone }} \u2014 {{ $('Merge qualification').first().json.q.summary }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE",
+          "name": "Twilio (Account SID / Auth Token)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lead webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify & normalise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & normalise": {
+      "main": [
+        [
+          {
+            "node": "AI qualify (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI qualify (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Merge qualification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge qualification": {
+      "main": [
+        [
+          {
+            "node": "Sign event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign event": {
+      "main": [
+        [
+          {
+            "node": "Report to Kairo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report to Kairo": {
+      "main": [
+        [
+          {
+            "node": "Not a test?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not a test?": {
+      "main": [
+        [
+          {
+            "node": "Hot lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot lead?": {
+      "main": [
+        [
+          {
+            "node": "SMS owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "kairo": "Env: KAIRO_BASE_URL, KAIRO_WEBHOOK_SECRET, KAIRO_AUTOMATION_ID_WEBSITE_LEAD, OPENAI_MODEL, OWNER_MOBILE, TWILIO_ACCOUNT_SID, TWILIO_FROM_NUMBER"
+  },
+  "tags": [
+    {
+      "name": "kairo"
+    }
+  ]
+}

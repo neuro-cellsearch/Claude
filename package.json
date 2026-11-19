@@ -1,12 +1,21 @@
 {
-  "name": "app-tmp",
-  "version": "0.1.0",
+  "name": "kairo-systems-platform",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test --trace off",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "env:local": "node scripts/gen-local-env.mjs",
+    "admin:grant": "node --env-file-if-exists=.env.local scripts/grant-admin.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -34,5 +43,8 @@
     "tailwindcss": "4.3.3",
     "typescript": "^5",
     "vitest": "^5.1.1"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }
