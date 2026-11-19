@@ -10,6 +10,7 @@ import { TrendChart } from "@/components/dashboard/charts";
 import { saveExpense, deleteExpense, seedTypicalExpenses } from "../_actions/admin";
 import { DEFAULT_FORECAST, monthlyEquivalent, type ForecastInputs } from "@/lib/finance";
 import { gbp, pct, date } from "@/lib/format";
+import { penceToPounds } from "@/lib/series";
 
 export default async function FinancePage() {
   await requireAdmin();
@@ -52,7 +53,7 @@ export default async function FinancePage() {
       </div>
 
       <Card className="mt-6"><CardHeader title="Actual monthly results (12 months)" description="Revenue from paid invoices; costs from the expenses below." />
-        <TrendChart data={m.series} series={[{ key: "revenue", label: "Revenue" }, { key: "grossProfit", label: "Gross profit" }, { key: "operatingProfit", label: "Operating profit" }]} format="gbp" height={260} />
+        <TrendChart data={penceToPounds(m.series, ["revenue", "grossProfit", "operatingProfit"])} series={[{ key: "revenue", label: "Revenue" }, { key: "grossProfit", label: "Gross profit" }, { key: "operatingProfit", label: "Operating profit" }]} format="gbp" height={260} />
       </Card>
 
       <Card className="mt-6">

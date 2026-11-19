@@ -5,6 +5,7 @@ import { getBusinessMetrics } from "@/lib/admin/metrics";
 import { PageHeader, StatCard, Card, CardHeader, EmptyState, StatusBadge, Notice } from "@/components/ui/primitives";
 import { TrendChart, BarsChart } from "@/components/dashboard/charts";
 import { gbp, pct, dateTime } from "@/lib/format";
+import { penceToPounds } from "@/lib/series";
 import { markNotificationsRead } from "./_actions/admin";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,7 @@ export default async function AdminOverview() {
   const pipelineValue = P.filter((e) => openStages.includes(e.stage)).reduce((t, e) => t + (e.estimated_monthly_pence ?? 0), 0);
   const stageCounts = ["new", "contacted", "qualified", "proposal_sent", "won", "lost"].map((s) => ({ label: s.replace("_", " "), count: P.filter((e) => e.stage === s).length }));
   const isAdmin = profile.role === "admin";
+  const money = penceToPounds(m.series, ["revenue", "recurring", "setup", "other", "mrr", "grossProfit", "operatingProfit"]);
   const progress = Math.max(0, Math.min(1, m.runRate.profitAfterTax / target));
 
   return (
@@ -59,10 +61,10 @@ export default async function AdminOverview() {
       {!m.hasRevenueData && <div className="mt-6"><Notice title="No revenue yet">Charts populate automatically from Stripe webhooks once customers subscribe.</Notice></div>}
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card><CardHeader title="Revenue by month" description="Paid invoices, split by type" /><BarsChart data={m.series} series={[{ key: "recurring", label: "Recurring" }, { key: "setup", label: "Setup" }]} format="gbp" stacked /></Card>
-        <Card><CardHeader title="Monthly recurring revenue" description="MRR at month end" /><TrendChart data={m.series} series={[{ key: "mrr", label: "MRR" }]} format="gbp" /></Card>
+        <Card><CardHeader title="Revenue by month" description="Paid invoices, split by type" /><BarsChart data={money} series={[{ key: "recurring", label: "Recurring" }, { key: "setup", label: "Setup" }]} format="gbp" stacked /></Card>
+        <Card><CardHeader title="Monthly recurring revenue" description="MRR at month end" /><TrendChart data={money} series={[{ key: "mrr", label: "MRR" }]} format="gbp" /></Card>
         <Card><CardHeader title="Customer acquisition & churn" /><BarsChart data={m.series} series={[{ key: "newCustomers", label: "New" }, { key: "churned", label: "Churned" }]} /></Card>
-        {isAdmin && <Card><CardHeader title="Profit by month" description="Gross and operating profit (before tax)" /><TrendChart data={m.series} series={[{ key: "grossProfit", label: "Gross profit" }, { key: "operatingProfit", label: "Operating profit" }]} format="gbp" /></Card>}
+        {isAdmin && <Card><CardHeader title="Profit by month" description="Gross and operating profit (before tax)" /><TrendChart data={money} series={[{ key: "grossProfit", label: "Gross profit" }, { key: "operatingProfit", label: "Operating profit" }]} format="gbp" /></Card>}
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">

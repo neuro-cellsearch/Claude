@@ -35,3 +35,12 @@ export function countBy<T>(rows: T[], key: (r: T) => string) {
   for (const r of rows) m.set(key(r), (m.get(key(r)) ?? 0) + 1);
   return m;
 }
+
+/** Charts display pounds; the database stores pence. Converts the given keys. */
+export function penceToPounds<T extends Record<string, unknown>>(rows: T[], keys: (keyof T)[]): T[] {
+  return rows.map((r) => {
+    const out = { ...r };
+    for (const k of keys) if (typeof r[k] === "number") (out[k] as unknown) = (r[k] as number) / 100;
+    return out;
+  });
+}

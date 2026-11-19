@@ -19,6 +19,12 @@ const csp = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Tailwind CSS v4 is compiled by its Turbopack loader (no PostCSS config needed).
+  turbopack: {
+    rules: {
+      "*.css": { loaders: ["@tailwindcss/turbopack"], as: "*.css" },
+    },
+  },
   async headers() {
     return [
       {
