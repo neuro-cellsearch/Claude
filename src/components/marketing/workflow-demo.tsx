@@ -73,11 +73,11 @@ export function WorkflowDemo() {
 
   useEffect(() => {
     if (!playing) return;
-    if (step >= STEPS.length - 1) {
-      setPlaying(false);
-      return;
-    }
-    const t = setTimeout(() => setStep((x) => x + 1), step < 0 ? 300 : 1100);
+    const finished = step >= STEPS.length - 1;
+    const t = setTimeout(() => {
+      if (finished) setPlaying(false);
+      else setStep((x) => x + 1);
+    }, finished ? 0 : step < 0 ? 300 : 1100);
     return () => clearTimeout(t);
   }, [playing, step]);
 
