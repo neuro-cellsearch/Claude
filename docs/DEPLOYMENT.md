@@ -12,7 +12,7 @@ Recommended: **Supabase (London region) + Vercel**. Total time ≈ 1–2 hours e
    DATABASE_URL="postgresql://postgres:…@db.<ref>.supabase.co:5432/postgres" node scripts/migrate.mjs
    ```
    The script is idempotent (tracks applied files in `schema_migrations`). Run it again after every release that adds a migration.
-5. **Authentication → URL Configuration**: Site URL = `https://yourdomain.co.uk`; add redirect URL `https://yourdomain.co.uk/auth/callback`.
+5. **Authentication → URL Configuration**: Site URL = `https://yourdomain.co.uk`; add redirect URLs `https://yourdomain.co.uk/auth/callback` and `https://yourdomain.co.uk/auth/accept` (used by staff invitations).
 6. **Authentication → Providers → Email**: keep *Confirm email* **on**. Set minimum password length ≥ 10.
 7. **Authentication → Emails → SMTP**: configure custom SMTP (Resend: `smtp.resend.com`, port 465, user `resend`, password = API key) so confirmation, reset and invite emails come from your domain. Supabase's built-in mailer is rate-limited and not for production.
 8. **Database → Backups**: Pro plan includes daily backups (7 days). Enable **Point-in-Time Recovery** add-on once you have paying customers. See *Backups* below for an independent off-site copy.

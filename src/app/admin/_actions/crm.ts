@@ -67,7 +67,8 @@ export async function inviteCustomer(_p: ActionState, fd: FormData): Promise<Act
     return { ok: true, message: "This person already has an account — linked to their organisation." };
   }
   const { data, error } = await db.auth.admin.inviteUserByEmail(e.email, {
-    redirectTo: `${site.url}/auth/callback?next=/reset-password`,
+    // Invites use the implicit flow (tokens in the URL fragment), handled client-side.
+    redirectTo: `${site.url}/auth/accept?next=/reset-password`,
     data: { full_name: e.name, company_name: e.company ?? "", industry: e.industry ?? "" },
   });
   if (error || !data.user) {

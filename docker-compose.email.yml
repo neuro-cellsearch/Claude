@@ -1,0 +1,17 @@
+# Optional override: real email confirmation locally, with all mail captured by Mailpit.
+#   docker compose -f docker-compose.yml -f docker-compose.email.yml up -d
+#   Inbox UI: http://localhost:54329
+services:
+  mail:
+    image: axllent/mailpit:v1.21
+    ports: ["54329:8025"]
+  auth:
+    depends_on: [mail]
+    environment:
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_HOST: mail
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_USER: ""
+      GOTRUE_SMTP_PASS: ""
+      GOTRUE_SMTP_ADMIN_EMAIL: noreply@kairo.local
+      GOTRUE_SMTP_SENDER_NAME: Kairo Systems
