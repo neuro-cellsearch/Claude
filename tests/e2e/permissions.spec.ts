@@ -38,6 +38,8 @@ test.describe.serial("Row-level security permission matrix", () => {
     ctx = await pwRequest.newContext();
     const request = ctx;
     await signUp(request, a, `Perm A ${RUN}`); await signUp(request, b, `Perm B ${RUN}`); await signUp(request, s, `Perm S ${RUN}`);
+    // Works whether or not the auth server requires email confirmation.
+    sql(`update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where email in ('${a}','${b}','${s}')`);
     sql(`update profiles set role='staff' where email='${s}'`);
     orgA = sql(`select organization_id from profiles where email='${a}'`);
     orgB = sql(`select organization_id from profiles where email='${b}'`);

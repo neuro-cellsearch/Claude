@@ -21,6 +21,19 @@ function memoryLimit(key: string, limit: number, windowSeconds: number) {
  * Fixed-window rate limiter. Uses Postgres (shared across serverless instances)
  * when available, otherwise an in-memory fallback. Returns true if allowed.
  */
+/**
+ * IP-keyed limit that is skipped (with a warning) when the client IP is unknown,
+ * so a misconfigured proxy can't put every user into one shared bucket and lock
+ * the whole site out. Callers must also apply an account/email-keyed limit.
+ */
+export async function rateLimitByIp(scope: string, ipHash: string | null, limit: number, windowSeconds: number): Promise<boolean> {
+  if (!ipHash) {
+    logger.warn("rate_limit_ip_unknown", { scope });
+    return true;
+  }
+  return rateLimit(`${scope}:${ipHash}`, limit, windowSeconds);
+}
+
 export async function rateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
   if (!hasServiceRole()) return memoryLimit(key, limit, windowSeconds);
   try {

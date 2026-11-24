@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getOpenAI, openaiModel } from "@/lib/integrations/openai";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitByIp } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/request";
 import { hashIp } from "@/lib/crypto";
 import { createEnquiry } from "@/lib/sales/enquiries";
 import { hasServiceRole, site } from "@/lib/env";
@@ -53,9 +54,9 @@ export async function POST(req: Request) {
   const ai = getOpenAI();
   if (!ai) return NextResponse.json({ error: "not_configured" }, { status: 503 });
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const ipHash = hashIp(ip);
-  if (!(await rateLimit(`chat:${ipHash ?? "unknown"}`, 30, 600))) {
+  const ipHash = hashIp(await clientIp());
+  // Per-IP limit, plus a site-wide cap that bounds AI spend even if IPs are unknown or rotated.
+  if (!(await rateLimitByIp("chat", ipHash, 30, 600)) || !(await rateLimit("chat:global", 600, 600))) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 

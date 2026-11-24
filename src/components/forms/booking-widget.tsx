@@ -1,10 +1,10 @@
 "use client";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormAction } from "./use-form-action";
 import Link from "next/link";
 import { submitEnquiry } from "@/app/(marketing)/actions";
 import { Field, Input, Textarea, Select, Checkbox, SubmitButton, FormMessage } from "@/components/ui/form";
 import { INDUSTRY_OPTIONS } from "@/lib/content/industries";
-import type { ActionState } from "@/lib/validation";
 import { CalendarCheck2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 
@@ -17,7 +17,7 @@ export function BookingWidget() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
-  const [state, action] = useActionState<ActionState, FormData>(submitEnquiry, null);
+  const { state, pending, onSubmit } = useFormAction(submitEnquiry);
   const fe = state?.fieldErrors ?? {};
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function BookingWidget() {
         {fe.slot && <p className="mt-3 text-[12.5px] text-danger">{fe.slot}</p>}
       </div>
 
-      <form action={action} className="space-y-5 p-6">
+      <form onSubmit={onSubmit} className="space-y-5 p-6">
         <input type="hidden" name="type" value="consultation" />
         <input type="hidden" name="slot" value={slot ?? ""} />
         <div className="hidden" aria-hidden="true"><input name="website" tabIndex={-1} autoComplete="off" /></div>
@@ -101,7 +101,7 @@ export function BookingWidget() {
         <Checkbox name="privacyAccepted" required label={<>I agree to Kairo Systems using these details to arrange and hold this consultation, as described in the <Link href="/privacy" className="text-signal-300 underline">privacy policy</Link>.</>} />
         {fe.privacyAccepted && <p className="text-[12.5px] text-danger">{fe.privacyAccepted}</p>}
         <FormMessage state={state} />
-        <SubmitButton size="lg" disabled={!slot} pendingText="Booking…">{slot ? `Book ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}` : "Select a time above"}</SubmitButton>
+        <SubmitButton size="lg" disabled={!slot} pendingText="Booking…" pending={pending}>{slot ? `Book ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}` : "Select a time above"}</SubmitButton>
       </form>
     </div>
   );

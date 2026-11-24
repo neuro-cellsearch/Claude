@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyStaff } from "@/lib/integrations/notify";
 import { audit } from "@/lib/audit";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitByIp } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/request";
 import { hashIp } from "@/lib/crypto";
 import type { ActionState } from "@/lib/validation";
@@ -16,7 +16,7 @@ export async function acceptProposal(_p: ActionState, fd: FormData): Promise<Act
   if (!name.success) return { error: name.error.issues[0].message };
   if (fd.get("authority") !== "on") return { error: "Please confirm you're authorised to accept on behalf of the business." };
   const ipHash = hashIp(await clientIp());
-  if (!(await rateLimit(`accept:${ipHash}`, 10, 3600))) return { error: "Too many attempts." };
+  if (!(await rateLimitByIp("accept", ipHash, 10, 3600)) || !(await rateLimit(`accept-token:${token.data.slice(0, 16)}`, 10, 3600))) return { error: "Too many attempts." };
   const db = createAdminClient();
   const { data: q } = await db.from("quotes").select("*").eq("public_token", token.data).single();
   if (!q) return { error: "Proposal not found." };

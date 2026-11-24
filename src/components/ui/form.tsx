@@ -64,9 +64,10 @@ export function Checkbox({ name, label, defaultChecked, required, value }: { nam
 }
 
 export function SubmitButton({
-  children, pendingText = "Saving…", variant = "primary", size = "md", className, ...props
-}: { children: ReactNode; pendingText?: string; variant?: "primary" | "secondary" | "danger" | "outline" | "ghost"; size?: "sm" | "md" | "lg" } & ComponentProps<"button">) {
-  const { pending } = useFormStatus();
+  children, pendingText = "Saving…", variant = "primary", size = "md", className, pending: pendingProp, ...props
+}: { children: ReactNode; pendingText?: string; variant?: "primary" | "secondary" | "danger" | "outline" | "ghost"; size?: "sm" | "md" | "lg"; pending?: boolean } & ComponentProps<"button">) {
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
   return (
     <button type="submit" disabled={pending || props.disabled} className={buttonClass(variant, size, className)} {...props}>
       {pending ? pendingText : children}

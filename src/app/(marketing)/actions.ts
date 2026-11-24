@@ -1,7 +1,7 @@
 "use server";
 import { enquirySchema, fieldErrors, type ActionState } from "@/lib/validation";
 import { createEnquiry, SlotUnavailableError } from "@/lib/sales/enquiries";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitByIp } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/request";
 import { hashIp } from "@/lib/crypto";
 import { hasServiceRole, site } from "@/lib/env";
@@ -38,7 +38,7 @@ export async function submitEnquiry(_prev: ActionState, formData: FormData): Pro
 
   const ip = await clientIp();
   const ipHash = hashIp(ip);
-  if (!(await rateLimit(`enquiry:${ipHash ?? "unknown"}`, 5, 600))) {
+  if (!(await rateLimitByIp("enquiry", ipHash, 5, 600)) || !(await rateLimit(`enquiry-email:${hashIp(parsed.data.email)}`, 5, 3600))) {
     return { error: "Too many submissions from your connection. Please try again in a few minutes." };
   }
 

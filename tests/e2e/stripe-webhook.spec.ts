@@ -86,6 +86,7 @@ test.describe.serial("Stripe webhook handling (synthetic signed events)", () => 
 
 test("server refuses a second checkout when a live subscription exists (stale tab / double submit)", async ({ browser }) => {
   const email = `dupsub.${RUN}@example.com`, pw = "DupSubPassw0rd!";
+  sql("delete from rate_limits"); // all suite logins share the localhost IP bucket
   const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/signup`, { method: "POST", headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: pw }) });
   expect(r.ok).toBe(true);
   sql(`update auth.users set email_confirmed_at = now() where email='${email}'`);

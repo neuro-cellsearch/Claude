@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, registerSchema, email as emailSchema, fieldErrors, type ActionState } from "@/lib/validation";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitByIp } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/request";
 import { hashIp } from "@/lib/crypto";
 import { hasSupabase, site } from "@/lib/env";
@@ -16,8 +16,7 @@ function safeNext(next: FormDataEntryValue | null, fallback: string) {
 }
 
 async function limited(kind: string, max: number, windowSec: number) {
-  const ip = hashIp(await clientIp()) ?? "unknown";
-  return !(await rateLimit(`${kind}:${ip}`, max, windowSec));
+  return !(await rateLimitByIp(kind, hashIp(await clientIp()), max, windowSec));
 }
 
 export async function login(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -25,6 +24,10 @@ export async function login(_prev: ActionState, formData: FormData): Promise<Act
   const parsed = loginSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: "Enter your email and password.", fieldErrors: fieldErrors(parsed.error) };
   if (await limited("login", 10, 900)) return { error: "Too many sign-in attempts. Please wait 15 minutes and try again." };
+  // Per-account limit: IP rotation can't be used to keep guessing one account's password.
+  if (!(await rateLimit(`login-acct:${hashIp(parsed.data.email)}`, 15, 900))) {
+    return { error: "Too many sign-in attempts for this account. Please wait 15 minutes or reset your password." };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
@@ -79,6 +82,7 @@ export async function requestPasswordReset(_prev: ActionState, formData: FormDat
   const parsed = emailSchema.safeParse(formData.get("email"));
   if (!parsed.success) return { error: "Enter a valid email address." };
   if (await limited("reset", 5, 3600)) return { error: "Too many requests. Please try later." };
+  if (!(await rateLimit(`reset-acct:${hashIp(parsed.data)}`, 3, 3600))) return { ok: true, message: "If an account exists for that email, a reset link is on its way." };
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(parsed.data, { redirectTo: `${site.url}/auth/callback?next=/reset-password` });
   // Same response whether or not the account exists (prevents account enumeration).

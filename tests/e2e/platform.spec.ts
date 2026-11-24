@@ -93,8 +93,19 @@ test.describe.serial("Kairo platform end-to-end", () => {
 
   test("form validation and honeypot", async ({ page }) => {
     await page.goto("/contact");
+    await page.getByLabel("Full name").fill("Kept Name");
+    await page.getByLabel("Work email").fill("not-an-email");
     await page.getByRole("button", { name: "Send message" }).click();
     await expect(page.getByText("Please check the highlighted fields.")).toBeVisible();
+    // Regression: a validation error must not wipe what the user typed.
+    await expect(page.getByLabel("Full name")).toHaveValue("Kept Name");
+    await expect(page.getByLabel("Work email")).toHaveValue("not-an-email");
+    await page.goto("/login");
+    await page.getByLabel("Email").fill("someone@example.com");
+    await page.getByLabel("Password").fill("wrong-password");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByText("Incorrect email or password.")).toBeVisible();
+    await expect(page.getByLabel("Email")).toHaveValue("someone@example.com");
   });
 
   test("customer registers, completes onboarding and stores an encrypted credential", async ({ page }) => {
@@ -106,7 +117,16 @@ test.describe.serial("Kairo platform end-to-end", () => {
     await page.getByLabel(/^Password/).fill(customer.password);
     await page.getByRole("checkbox", { name: /accept the terms/ }).check();
     await page.getByRole("button", { name: "Create account" }).click();
-    await page.waitForURL(/\/portal\/billing\?plan=growth/);
+    // With email confirmation enabled (docker-compose.email.yml), confirm and sign in.
+    await page.waitForURL(/\/portal\/billing\?plan=growth/, { timeout: 5000 }).catch(async () => {
+      await expect(page.getByText(/Check your inbox to confirm/)).toBeVisible();
+      sql(`update auth.users set email_confirmed_at = now() where email='${customer.email}'`);
+      await page.goto("/login?next=" + encodeURIComponent("/portal/billing?plan=growth"));
+      await page.getByLabel("Email").fill(customer.email);
+      await page.getByLabel("Password").fill(customer.password);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await page.waitForURL(/\/portal\/billing\?plan=growth/);
+    });
     await expect(page.getByText("Card payments are not yet enabled")).toBeVisible();
 
     await page.goto("/portal/onboarding");
@@ -155,6 +175,7 @@ test.describe.serial("Kairo platform end-to-end", () => {
       headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }, data: { email: admin.email, password: admin.password, data: { full_name: "Agency Owner", company_name: "Kairo Systems" } },
     });
     expect(signup.ok()).toBe(true);
+    sql(`update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where email='${admin.email}'`);
     execFileSync("node", ["scripts/grant-admin.mjs", admin.email], { env: process.env });
     await login(page, admin.email, admin.password);
     await page.waitForURL(/\/admin$/);

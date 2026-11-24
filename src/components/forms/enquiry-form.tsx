@@ -1,15 +1,14 @@
 "use client";
-import { useActionState } from "react";
 import Link from "next/link";
 import { submitEnquiry } from "@/app/(marketing)/actions";
 import { Field, Input, Textarea, Select, Checkbox, SubmitButton, FormMessage, Label } from "@/components/ui/form";
 import { SERVICE_OPTIONS } from "@/lib/content/services";
 import { INDUSTRY_OPTIONS } from "@/lib/content/industries";
-import type { ActionState } from "@/lib/validation";
+import { useFormAction } from "./use-form-action";
 import { CheckCircle2 } from "lucide-react";
 
 export function EnquiryForm({ type, defaultService }: { type: "contact" | "quote"; defaultService?: string }) {
-  const [state, action] = useActionState<ActionState, FormData>(submitEnquiry, null);
+  const { state, pending, onSubmit } = useFormAction(submitEnquiry);
   const fe = state?.fieldErrors ?? {};
 
   if (state?.ok) {
@@ -23,7 +22,7 @@ export function EnquiryForm({ type, defaultService }: { type: "contact" | "quote
   }
 
   return (
-    <form action={action} className="surface-raised space-y-5 p-6 sm:p-8" noValidate>
+    <form onSubmit={onSubmit} className="surface-raised space-y-5 p-6 sm:p-8" noValidate>
       <input type="hidden" name="type" value={type} />
       <div className="hidden" aria-hidden="true">
         <label>Website <input name="website" tabIndex={-1} autoComplete="off" /></label>
@@ -88,7 +87,7 @@ export function EnquiryForm({ type, defaultService }: { type: "contact" | "quote
       </div>
 
       <FormMessage state={state} />
-      <SubmitButton size="lg" className="w-full sm:w-auto" pendingText="Sending…">
+      <SubmitButton size="lg" className="w-full sm:w-auto" pendingText="Sending…" pending={pending}>
         {type === "quote" ? "Request my tailored quote" : "Send message"}
       </SubmitButton>
     </form>

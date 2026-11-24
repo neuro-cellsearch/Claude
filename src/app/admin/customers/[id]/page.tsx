@@ -99,7 +99,7 @@ export default async function CustomerDetail(props: PageProps<"/admin/customers/
                         )}
                         {a.status === "awaiting_approval" && !isAdmin && <p className="text-[12px] text-muted">Waiting for an administrator to approve.</p>}
                         {["testing", "in_build", "failed"].includes(a.status) && (
-                          <details className="rounded-lg border border-line p-3" open={a.status === "testing"}>
+                          <details className="rounded-lg border border-line p-3" open={a.status === "testing" || a.status === "failed"}>
                             <summary className="cursor-pointer text-[13px] font-medium text-fg">Run / record a test</summary>
                             <div className="mt-3 space-y-3">
                               <ActionForm action={runLiveTest} submitLabel="Send live test webhook" size="sm" variant="secondary" pendingText="Testing…"><input type="hidden" name="id" value={a.id} />{!cfg.test_webhook_url && <p className="text-[12px] text-warning">No test webhook URL configured.</p>}</ActionForm>
