@@ -104,3 +104,7 @@ Enable n8n's owner account and 2FA immediately, back up the `n8n_data` volume ni
 - [ ] Privacy policy and terms reviewed by a solicitor; company details set in `NEXT_PUBLIC_COMPANY_*`
 - [ ] ICO data protection fee paid and registration number set in `NEXT_PUBLIC_ICO_REGISTRATION`
 - [ ] Off-site backup job running and one restore tested
+- [ ] Supabase → Authentication → Rate Limits raised for sign-in/sign-up (auth calls originate from the app server's IP)
+- [ ] Self-hosting only: reverse proxy sets `X-Real-IP` and strips client-supplied `X-Forwarded-For`
+- [ ] Admin → Integrations shows no configuration issues
+- [ ] Stripe test-mode checklist in `docs/AUDIT_REPORT.md` §2 completed

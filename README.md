@@ -33,12 +33,20 @@ Create your admin account: register at `/register`, then `npm run admin:grant --
 ## Tests
 
 ```bash
-npm test                 # 32 unit tests: tax/forecast maths, scoring, DST-safe slots, PECR rules, encryption
-npm run build && npm start &
-npm run test:e2e         # 15 end-to-end browser tests against the running app + local stack
+npm test                                   # 51 unit tests
+npm run build && npm start &               # app on :3000
+npm run test:e2e                           # journeys, every button/form, RLS permission matrix
+
+# Real email auth flows (confirmation, reset, invites) via Mailpit:
+docker compose -f docker-compose.yml -f docker-compose.email.yml up -d
+MAILPIT_URL=http://localhost:54329 npm run test:e2e
+
+# Stripe webhook LOGIC tests (synthetic signed events — not a substitute for Stripe test mode):
+STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_localtest npx next start -p 3001 &
+STRIPE_TEST_URL=http://localhost:3001 npm run test:e2e
 ```
 
-The E2E suite drives real user journeys: booking a consultation, requesting a quote, registering and onboarding, credential encryption, admin pipeline, proposal acceptance, the full automation lifecycle (including the database refusing an untested activation), HMAC-signed automation events creating leads, finance, compliance-gated outreach campaigns, unsubscribe handling and protected endpoints.
+Latest results and the full production-readiness audit: [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md).
 
 ## Documentation
 
@@ -50,6 +58,7 @@ The E2E suite drives real user journeys: booking a consultation, requesting a qu
 | [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Setting up every provider; automation event API; n8n templates |
 | [`docs/BUSINESS_PLAN.md`](docs/BUSINESS_PLAN.md) | Offer, pricing logic, the path to £10k/month net profit, acquisition plan |
 | [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) | UK GDPR, PECR, TPS, AI transparency, advertising rules — and how the platform enforces them |
+| [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) | Production-readiness audit: fixes, verified features, credentials, remaining risks |
 | [`docs/CREDENTIALS_CHECKLIST.md`](docs/CREDENTIALS_CHECKLIST.md) | Everything that needs your credentials, decisions or manual approval |
 | [`automation-templates/README.md`](automation-templates/README.md) | Importing and testing the n8n workflows |
 
