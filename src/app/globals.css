@@ -81,6 +81,12 @@ body {
   outline-offset: 2px;
 }
 
+/* Grid children may shrink below their content width, so wide tables scroll inside
+   their card instead of widening the page on mobile. Utilities still override. */
+@layer base {
+  .grid > * { min-width: 0; }
+}
+
 @layer components {
   .surface {
     background: linear-gradient(180deg, color-mix(in srgb, var(--color-ink-800) 92%, white 0%), var(--color-ink-850));

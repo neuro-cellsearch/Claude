@@ -210,20 +210,20 @@ export async function startCheckout(fd: FormData) {
   }
 
   const { data: org } = await db.from("organizations").select("name, stripe_customer_id").eq("id", orgId).single();
-  let customer = org?.stripe_customer_id ?? undefined;
-  if (!customer) {
-    const c = await stripe.customers.create({ email: profile.email, name: org?.name, metadata: { organization_id: orgId } });
-    customer = c.id;
-    await db.from("organizations").update({ stripe_customer_id: customer }).eq("id", orgId);
-  }
-
   const line_items: import("stripe").Stripe.Checkout.SessionCreateParams.LineItem[] = [
     { quantity: 1, price_data: { currency: "gbp", unit_amount: monthly, recurring: { interval: "month" }, product_data: { name: `${name} — monthly` } } },
   ];
   if (setup > 0) line_items.push({ quantity: 1, price_data: { currency: "gbp", unit_amount: setup, product_data: { name: `${name} — one-off setup` } } });
 
   let url: string | null = null;
+  // Every Stripe call is inside the try: an outage or bad key must show a message, not an unhandled error.
   try {
+    let customer = org?.stripe_customer_id ?? undefined;
+    if (!customer) {
+      const c = await stripe.customers.create({ email: profile.email, name: org?.name, metadata: { organization_id: orgId } });
+      customer = c.id;
+      await db.from("organizations").update({ stripe_customer_id: customer }).eq("id", orgId);
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
@@ -237,13 +237,13 @@ export async function startCheckout(fd: FormData) {
       subscription_data: { metadata: { organization_id: orgId, plan_id: plan, quote_id: quoteRef ?? "" } },
       success_url: `${site.url}/portal/billing?checkout=success`,
       cancel_url: `${site.url}/portal/billing?checkout=cancelled`,
-    });
+    }, { idempotencyKey: `checkout:${orgId}:${plan}:${quoteRef ?? ""}:${Math.floor(Date.now() / 60000)}` });
     url = session.url;
     await audit(user.id, "checkout.started", "organization", orgId, { plan, setup, monthly });
   } catch (err) {
     logger.error("checkout_failed", { err });
-    redirect("/portal/billing?error=checkout");
   }
+  if (!url) redirect("/portal/billing?error=checkout");
   redirect(url!);
 }
 

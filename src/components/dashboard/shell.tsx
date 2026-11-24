@@ -72,14 +72,14 @@ export function DashboardShell({
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-ink-900 lg:flex">
         <div className="flex h-16 items-center gap-2 border-b border-line px-5">
-          <Link href="/"><Logo /></Link>
+          <Link href="/" prefetch={false}><Logo /></Link>
         </div>
         <p className="px-6 pt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-signal-300">{areaLabel}</p>
         {nav}
         {footer}
       </aside>
       <div className="flex h-14 items-center justify-between border-b border-line bg-ink-900 px-4 lg:hidden">
-        <Link href="/"><Logo /></Link>
+        <Link href="/" prefetch={false}><Logo /></Link>
         <button onClick={() => setOpen((o) => !o)} className="p-2 text-muted" aria-label="Toggle navigation">{open ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
       {open && <div className="flex flex-col border-b border-line bg-ink-900 lg:hidden">{nav}{footer}</div>}

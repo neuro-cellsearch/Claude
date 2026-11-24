@@ -12,25 +12,19 @@ export function AcceptClient({ next }: { next: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    // Remove tokens from the address bar and history immediately.
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    if (params.get("error")) {
-      setError(params.get("error_description") || "This link is invalid or has expired.");
-      return;
+    async function accept() {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      // Remove tokens from the address bar and history immediately.
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      if (params.get("error")) return setError(params.get("error_description") || "This link is invalid or has expired.");
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      if (!access_token || !refresh_token) return setError("This link is missing its sign-in details. Please request a new one.");
+      const { error: e } = await createClient().auth.setSession({ access_token, refresh_token });
+      if (e) setError("This link is invalid or has expired. Please request a new one.");
+      else window.location.replace(safeRedirectPath(next, "/portal"));
     }
-    const access_token = params.get("access_token");
-    const refresh_token = params.get("refresh_token");
-    if (!access_token || !refresh_token) {
-      setError("This link is missing its sign-in details. Please request a new one.");
-      return;
-    }
-    createClient()
-      .auth.setSession({ access_token, refresh_token })
-      .then(({ error: e }) => {
-        if (e) setError("This link is invalid or has expired. Please request a new one.");
-        else window.location.replace(safeRedirectPath(next, "/portal"));
-      });
+    void accept();
   }, [next]);
 
   return (

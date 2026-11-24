@@ -16,7 +16,11 @@ export function ChatWidget() {
   const [unavailable, setUnavailable] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, open]);
+  // Braces matter: newer browsers return a Promise from scrollIntoView, which React
+  // would otherwise treat as the effect cleanup function and crash on re-run.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +91,7 @@ export function ChatWidget() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "Close chat assistant" : "Open chat assistant"}
         className="ml-auto flex h-13 items-center gap-2 rounded-full bg-signal-500 px-5 py-3.5 text-sm font-medium text-white shadow-[0_10px_40px_-10px_rgba(47,123,255,0.8)] transition hover:bg-signal-400"
         aria-expanded={open}
       >

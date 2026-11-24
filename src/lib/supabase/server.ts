@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 export async function createClient() {
   const cookieStore = await cookies();
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    // Auth cookies: Secure on HTTPS deployments; SameSite=Lax limits cross-site sending.
+    cookieOptions: { secure: (process.env.NEXT_PUBLIC_SITE_URL || "").startsWith("https://"), sameSite: "lax", path: "/" },
     cookies: {
       getAll() {
         return cookieStore.getAll();

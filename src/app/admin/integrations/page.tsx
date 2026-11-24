@@ -4,12 +4,21 @@ import { PageHeader, Card, StatusBadge, Badge, Notice } from "@/components/ui/pr
 import { ActionForm } from "@/components/forms/action-form";
 import { testIntegration } from "../_actions/admin";
 import { serverEnv, site } from "@/lib/env";
+import { checkEnv } from "@/lib/env-check";
 
 export default async function IntegrationsPage() {
   await requireAdmin();
+  const issues = checkEnv();
   return (
     <>
       <PageHeader title="Integrations" description="Status reflects whether credentials are set. 'Run live test' makes a real authenticated API call — an integration is only working once that passes." />
+      {issues.length > 0 && (
+        <div className="mb-4">
+          <Notice tone={issues.some((i) => i.level === "error") ? "red" : "amber"} title={`Configuration check: ${issues.length} issue(s)`}>
+            <ul className="mt-1 space-y-0.5">{issues.map((i) => <li key={i.variable + i.message}><code className="text-[12px]">{i.variable}</code> — {i.message}</li>)}</ul>
+          </Notice>
+        </div>
+      )}
       <Notice title="Secrets stay on the server">Credentials are read from environment variables in your hosting provider and are never sent to the browser. To change one, update it in your hosting dashboard and redeploy.</Notice>
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
         {INTEGRATIONS.map((i) => {

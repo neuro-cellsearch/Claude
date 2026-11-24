@@ -29,6 +29,37 @@ test.describe.serial("Kairo platform end-to-end", () => {
     await expect(page.getByText("In our clients' words.")).toHaveCount(0);
   });
 
+  test("chat assistant without an AI key shows an honest fallback and does not crash (desktop + mobile)", async ({ browser }) => {
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      const page = await browser.newPage({ viewport });
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      await page.goto("/pricing");
+      await page.getByRole("button", { name: "Open chat assistant" }).click();
+      await page.getByLabel("Message").fill("How much is the Growth plan?");
+      await page.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByText(/assistant isn't switched on yet/)).toBeVisible();
+      expect(errors).toEqual([]);
+      await page.close();
+    }
+  });
+
+  test("mobile navigation menu works", async ({ browser }) => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Toggle menu" }).click();
+    await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Pricing" }).click();
+    await page.waitForURL(/\/pricing/);
+    await expect(page.getByRole("navigation", { name: "Mobile" })).toBeHidden();
+    await page.close();
+  });
+
+  test("unknown routes show the branded 404", async ({ page }) => {
+    const res = await page.goto("/this-does-not-exist");
+    expect(res?.status()).toBe(404);
+    await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  });
+
   test("visitor books a consultation through the real calendar", async ({ page }) => {
     await page.goto("/book");
     const firstTime = page.locator("button").filter({ hasText: /^\d{2}:\d{2}$/ }).first();
