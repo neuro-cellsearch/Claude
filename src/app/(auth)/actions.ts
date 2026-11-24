@@ -9,10 +9,10 @@ import { hasSupabase, site } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { audit } from "@/lib/audit";
 import { z } from "zod";
+import { safeRedirectPath } from "@/lib/redirect";
 
 function safeNext(next: FormDataEntryValue | null, fallback: string) {
-  const n = typeof next === "string" ? next : "";
-  return n.startsWith("/") && !n.startsWith("//") ? n : fallback;
+  return safeRedirectPath(next, fallback);
 }
 
 async function limited(kind: string, max: number, windowSec: number) {

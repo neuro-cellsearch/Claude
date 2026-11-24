@@ -60,7 +60,7 @@ export async function inviteCustomer(_p: ActionState, fd: FormData): Promise<Act
   const db = createAdminClient();
   const { data: e } = await db.from("enquiries").select("*").eq("id", id).single();
   if (!e) return { error: "Enquiry not found." };
-  const { data: existing } = await db.from("profiles").select("id, organization_id").ilike("email", e.email).maybeSingle();
+  const { data: existing } = await db.from("profiles").select("id, organization_id").eq("email", e.email.toLowerCase()).maybeSingle();
   if (existing) {
     await db.from("enquiries").update({ organization_id: existing.organization_id }).eq("id", id);
     revalidatePath(`/admin/enquiries/${id}`);

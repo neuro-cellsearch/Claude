@@ -187,6 +187,10 @@ export async function startCheckout(fd: FormData) {
   const stripe = getStripe();
   if (!stripe) redirect("/portal/billing?error=stripe_not_configured");
   const db = createAdminClient();
+  // Prevent duplicate subscriptions: one live subscription per organisation.
+  const { count: live } = await db.from("subscriptions").select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId).in("status", ["active", "trialing", "past_due"]);
+  if (live) redirect("/portal/billing?error=already_subscribed");
   const planId = String(fd.get("plan") ?? "");
   const quoteId = String(fd.get("quote") ?? "");
 
@@ -196,6 +200,7 @@ export async function startCheckout(fd: FormData) {
     if (!q || (q.organization_id && q.organization_id !== orgId) || q.recipient_email.toLowerCase() !== profile.email.toLowerCase()) {
       redirect("/portal/billing?error=quote");
     }
+    if (q.monthly_total_pence <= 0) redirect("/portal/billing?error=quote");
     name = `${q.title} (${q.number})`; setup = q.setup_total_pence; monthly = q.monthly_total_pence; plan = q.plan_id ?? "enterprise"; quoteRef = q.id;
     await db.from("quotes").update({ organization_id: orgId }).eq("id", q.id);
   } else {

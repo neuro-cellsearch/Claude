@@ -111,7 +111,7 @@ export async function setUserRole(_p: ActionState, fd: FormData): Promise<Action
   const role = z.enum(["customer", "staff", "admin"]).safeParse(fd.get("role"));
   if (!email.success || !role.success) return { error: "Enter a valid email and role." };
   const db = createAdminClient();
-  const { data: target } = await db.from("profiles").select("id, role").ilike("email", email.data).maybeSingle();
+  const { data: target } = await db.from("profiles").select("id, role").eq("email", email.data).maybeSingle();
   if (!target) return { error: "No account with that email. They must register first." };
   if (target.id === user.id && role.data !== "admin") {
     const { count } = await db.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin");

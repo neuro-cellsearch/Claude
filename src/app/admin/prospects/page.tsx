@@ -38,7 +38,7 @@ export default async function ProspectsPage(props: PageProps<"/admin/prospects">
                 return (
                   <tr key={p.id}>
                     <Td><p className="font-medium text-fg">{p.company_name}</p><p className="text-[12px] text-subtle">{INDUSTRY_LABEL[p.industry ?? ""] ?? p.industry} · {p.entity_type.replace(/_/g, " ")}</p><p className="text-[11px] text-subtle">Source: {p.source}</p></Td>
-                    <Td><p>{p.contact_name ?? "—"} {p.contact_role && <span className="text-subtle">· {p.contact_role}</span>}</p><p className="text-[12px] text-subtle">{[p.business_email, p.business_phone].filter(Boolean).join(" · ")}</p>{p.linkedin_url && <a className="text-[12px] text-signal-300" href={p.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}</Td>
+                    <Td><p>{p.contact_name ?? "—"} {p.contact_role && <span className="text-subtle">· {p.contact_role}</span>}</p><p className="text-[12px] text-subtle">{[p.business_email, p.business_phone].filter(Boolean).join(" · ")}</p>{p.linkedin_url && /^https?:\/\//i.test(p.linkedin_url) && <a className="text-[12px] text-signal-300" href={p.linkedin_url} target="_blank" rel="noreferrer">LinkedIn</a>}</Td>
                     <Td className="space-y-1">
                       <div>{p.business_email ? (corporate ? <Badge tone="green">email OK</Badge> : <Badge tone="red">email needs consent</Badge>) : <Badge>no email</Badge>}</div>
                       <div>{p.business_phone ? (p.tps_registered ? <Badge tone="red">TPS registered</Badge> : tpsFresh(p.tps_checked_at) ? <Badge tone="green">TPS clear {date(p.tps_checked_at)}</Badge> : <Badge tone="amber">TPS check due</Badge>) : <Badge>no phone</Badge>}</div>

@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/redirect";
 
 /** PKCE code exchange for email confirmation and password recovery links. */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const nextParam = url.searchParams.get("next") ?? "/portal";
-  const next = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/portal";
+  const next = safeRedirectPath(nextParam, "/portal");
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);

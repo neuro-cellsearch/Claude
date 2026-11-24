@@ -12,6 +12,14 @@ export const ukPhone = z
   .optional()
   .or(z.literal("").transform(() => undefined));
 
+const httpUrl = z
+  .string()
+  .trim()
+  .max(300)
+  .regex(/^https?:\/\/[^\s]+$/i, "Enter a full URL starting with https://")
+  .optional()
+  .or(z.literal("").transform(() => undefined));
+
 export const BUDGETS = ["under_300", "300_750", "750_1500", "over_1500", "unsure"] as const;
 export const VOLUMES = ["under_25", "25_100", "100_500", "500_plus", "unsure"] as const;
 
@@ -86,14 +94,14 @@ export const automationRequestSchema = z.object({
 export const prospectSchema = z.object({
   company_name: trimmed(200).min(2),
   industry: optionalText(60),
-  website: optionalText(300),
+  website: httpUrl,
   entity_type: z.enum(["limited_company", "llp", "plc", "scottish_partnership", "public_body", "sole_trader", "partnership", "unknown"]),
   company_number: optionalText(20),
   contact_name: optionalText(120),
   contact_role: optionalText(120),
   business_email: email.optional().or(z.literal("").transform(() => undefined)),
   business_phone: ukPhone,
-  linkedin_url: optionalText(300),
+  linkedin_url: httpUrl,
   source: trimmed(300).min(3, "Record where this business contact information came from"),
   lia_notes: optionalText(2000),
   notes: optionalText(2000),

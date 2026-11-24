@@ -7,7 +7,7 @@ Every integration is optional except Supabase. Status and live tests are in **Ad
 1. Create a Stripe account; complete business verification (required for live payouts).
 2. `STRIPE_SECRET_KEY` — Developers → API keys (start with `sk_test_…`).
 3. Webhook endpoint: `https://YOUR-DOMAIN/api/stripe/webhook` with events:
-   `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` → copy signing secret to `STRIPE_WEBHOOK_SECRET`.
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, `charge.refunded` → copy signing secret to `STRIPE_WEBHOOK_SECRET`.
 4. Settings → Billing → **Customer portal**: enable cancellation, payment method updates and invoice history.
 5. Optional: enable **Stripe Tax** if you register for VAT, so VAT is calculated at checkout.
 

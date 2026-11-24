@@ -42,7 +42,7 @@ export function ForecastCalculator({ initial, targetPence }: { initial: Forecast
 
   return (
     <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-      <div className="surface-raised space-y-3 p-5">
+      <div className="surface-raised min-w-0 space-y-3 p-5">
         <p className="text-[15px] font-semibold text-fg">Assumptions</p>
         {FIELDS.map((f) => (
           <label key={f.key} className="block">
@@ -53,7 +53,7 @@ export function ForecastCalculator({ initial, targetPence }: { initial: Forecast
           </label>
         ))}
       </div>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="surface-raised p-4"><p className="text-[12px] uppercase tracking-wider text-subtle">Monthly profit after tax</p><p className={`mt-2 text-2xl font-semibold tabular-nums ${r.profitAfterTax >= targetPence ? "text-success" : "text-fg"}`}>{gbp(r.profitAfterTax)}</p></div>
           <div className="surface-raised p-4"><p className="text-[12px] uppercase tracking-wider text-subtle">Annual profit after tax</p><p className="mt-2 text-2xl font-semibold tabular-nums text-fg">{gbp(r.annualProfitAfterTax)}</p></div>

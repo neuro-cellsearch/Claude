@@ -56,7 +56,7 @@ export async function createEnquiry(input: NewEnquiry): Promise<{ id: string; co
   const { data: existing } = await db
     .from("enquiries")
     .select("id, score, services")
-    .ilike("email", input.email)
+    .eq("email", input.email.toLowerCase())
     .in("stage", ["new", "contacted", "qualified"])
     .order("created_at", { ascending: false })
     .limit(1)
@@ -81,7 +81,7 @@ export async function createEnquiry(input: NewEnquiry): Promise<{ id: string; co
     const { data, error } = await db
       .from("enquiries")
       .insert({
-        type: input.type, name: input.name, email: input.email, phone: input.phone, company: input.company,
+        type: input.type, name: input.name, email: input.email.toLowerCase(), phone: input.phone, company: input.company,
         role: input.role, industry: input.industry, message: input.message, services: input.services ?? [],
         budget: input.budget, monthly_enquiries: input.monthlyEnquiries, score,
         estimated_monthly_pence: estimateMonthlyValue(input.budget), marketing_consent: input.marketingConsent ?? false,

@@ -24,11 +24,11 @@ export default async function UnsubscribePage(props: PageProps<"/unsubscribe">) 
     if (!error) {
       outcome = "ok";
       // Stop any active sequences and mark matching prospects as do-not-contact.
-      const { data: enquiries } = await db.from("enquiries").select("id").ilike("email", parsed.data);
+      const { data: enquiries } = await db.from("enquiries").select("id").eq("email", parsed.data);
       const ids = (enquiries ?? []).map((x) => x.id);
       if (ids.length) await db.from("sequence_enrollments").update({ status: "stopped" }).in("enquiry_id", ids);
-      await db.from("prospects").update({ status: "do_not_contact" }).ilike("business_email", parsed.data);
-      await db.from("profiles").update({ marketing_consent: false }).ilike("email", parsed.data);
+      await db.from("prospects").update({ status: "do_not_contact" }).eq("business_email", parsed.data);
+      await db.from("profiles").update({ marketing_consent: false }).eq("email", parsed.data);
     } else outcome = "error";
   }
 

@@ -43,10 +43,21 @@ export async function POST(req: Request) {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed": {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
         const s = event.data.object as Stripe.Checkout.Session;
         const orgId = s.metadata?.organization_id || s.client_reference_id;
         if (!orgId || s.mode !== "subscription") break;
+        // Delayed payment methods (e.g. Bacs Direct Debit) complete checkout before money clears.
+        // Only grant access once Stripe reports the session as paid.
+        if (s.payment_status !== "paid" && s.payment_status !== "no_payment_required") {
+          await db.from("subscriptions").upsert(
+            { organization_id: orgId, plan_id: s.metadata?.plan_id || "enterprise", status: "incomplete", monthly_pence: Number(s.metadata?.monthly_pence ?? 0), setup_fee_pence: Number(s.metadata?.setup_pence ?? 0), stripe_checkout_session_id: s.id, stripe_subscription_id: typeof s.subscription === "string" ? s.subscription : s.subscription?.id },
+            { onConflict: "stripe_checkout_session_id" },
+          );
+          await notifyStaff("Checkout awaiting payment", `Session ${s.id} completed with payment status "${s.payment_status}". Access will be granted when payment succeeds.`, `/admin/billing`);
+          break;
+        }
         const subId = typeof s.subscription === "string" ? s.subscription : s.subscription?.id;
         const sub = subId ? await stripe.subscriptions.retrieve(subId) : null;
         const { data: row } = await db.from("subscriptions").upsert(
@@ -63,6 +74,10 @@ export async function POST(req: Request) {
           },
           { onConflict: "stripe_checkout_session_id" },
         ).select("id").single();
+        if (row?.id && s.invoice) {
+          const invId = typeof s.invoice === "string" ? s.invoice : s.invoice.id;
+          await db.from("payments").update({ subscription_id: row.id }).in("stripe_invoice_id", [invId, `${invId}:setup`]).is("subscription_id", null);
+        }
         await db.from("organizations").update({ status: "onboarding", stripe_customer_id: typeof s.customer === "string" ? s.customer : s.customer?.id }).eq("id", orgId).in("status", ["prospect", "churned", "paused"]);
         if (s.metadata?.quote_id) await db.from("quotes").update({ organization_id: orgId }).eq("id", s.metadata.quote_id);
         const { data: org } = await db.from("organizations").select("name").eq("id", orgId).single();
@@ -128,6 +143,27 @@ export async function POST(req: Request) {
             await db.from("organizations").update({ status: "churned", churned_at: new Date().toISOString() }).eq("id", row.organization_id);
             await notifyStaff("Customer churned", `Subscription ${sub.id} was cancelled.`, `/admin/customers/${row.organization_id}`);
           }
+        }
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        const s = event.data.object as Stripe.Checkout.Session;
+        await db.from("subscriptions").update({ status: "canceled", canceled_at: new Date().toISOString() }).eq("stripe_checkout_session_id", s.id);
+        await notifyStaff("Delayed payment failed", `Checkout ${s.id} payment failed; no access granted.`, "/admin/billing");
+        break;
+      }
+      case "charge.refunded": {
+        // 4. Record refunds as negative payments so revenue reporting stays accurate (idempotent per refund).
+        const ch = event.data.object as Stripe.Charge;
+        const customerId = typeof ch.customer === "string" ? ch.customer : ch.customer?.id;
+        const { data: org } = customerId ? await db.from("organizations").select("id").eq("stripe_customer_id", customerId).maybeSingle() : { data: null };
+        for (const r of ch.refunds?.data ?? []) {
+          if (r.status !== "succeeded") continue;
+          await db.from("payments").upsert({
+            organization_id: org?.id ?? null, amount_pence: -r.amount, currency: r.currency, type: "refund", status: "paid",
+            description: `Refund of charge ${ch.id}`, stripe_invoice_id: `refund:${r.id}`, stripe_payment_intent_id: typeof ch.payment_intent === "string" ? ch.payment_intent : null,
+            paid_at: new Date((r.created ?? event.created) * 1000).toISOString(),
+          }, { onConflict: "stripe_invoice_id" });
         }
         break;
       }

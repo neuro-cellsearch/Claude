@@ -75,7 +75,7 @@ export default async function CampaignDetail(props: PageProps<"/admin/campaigns/
               return (
                 <div key={r.id} className="rounded-xl border border-line bg-ink-900 p-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[13.5px]"><span className="font-medium text-fg">{p.company_name}</span> <span className="text-subtle">{p.contact_name} · {c.channel === "email" ? p.business_email : c.channel === "phone" ? p.business_phone : <a className="text-signal-300" href={p.linkedin_url ?? "#"} target="_blank" rel="noreferrer">LinkedIn profile</a>}</span></p>
+                    <p className="text-[13.5px]"><span className="font-medium text-fg">{p.company_name}</span> <span className="text-subtle">{p.contact_name} · {c.channel === "email" ? p.business_email : c.channel === "phone" ? p.business_phone : <a className="text-signal-300" href={p.linkedin_url && /^https?:\/\//i.test(p.linkedin_url) ? p.linkedin_url : "#"} target="_blank" rel="noreferrer">LinkedIn profile</a>}</span></p>
                     <div className="flex items-center gap-2"><StatusBadge status={r.status} />{r.sent_at && <span className="text-[11.5px] text-subtle">{dateTime(r.sent_at)}</span>}</div>
                   </div>
                   {missing.length > 0 && <p className="mb-2 text-[12px] text-warning">Fill in: {missing.map((m) => `{{${m}}}`).join(", ")}</p>}

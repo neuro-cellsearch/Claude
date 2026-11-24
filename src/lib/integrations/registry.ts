@@ -57,7 +57,7 @@ export const INTEGRATIONS: Integration[] = [
     setup: [
       "Create a Stripe account and complete business verification (required before live payments).",
       "Copy the secret key from Developers → API keys (use test mode first: sk_test_…).",
-      "Add a webhook endpoint at https://YOUR-DOMAIN/api/stripe/webhook listening to: checkout.session.completed, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted.",
+      "Add a webhook endpoint at https://YOUR-DOMAIN/api/stripe/webhook listening to: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted, charge.refunded.",
       "Copy the webhook signing secret (whsec_…) into STRIPE_WEBHOOK_SECRET.",
       "Activate the Customer Portal under Settings → Billing → Customer portal.",
     ],

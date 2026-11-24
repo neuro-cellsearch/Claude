@@ -38,6 +38,7 @@ export function DashboardShell({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     onClick={() => setOpen(false)}
                     className={cn(
                       "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition",

@@ -14,6 +14,7 @@ const ERRORS: Record<string, string> = {
   checkout: "We couldn't start checkout. Please try again or contact support.",
   no_customer: "No billing account exists yet — choose a plan first.",
   portal: "The billing portal couldn't be opened. Please try again.",
+  already_subscribed: "You already have an active subscription. Use \"Manage\" to change plan or payment details.",
 };
 
 export default async function BillingPage(props: PageProps<"/portal/billing">) {
@@ -27,7 +28,7 @@ export default async function BillingPage(props: PageProps<"/portal/billing">) {
   // Accepted proposals addressed to this user that are awaiting payment.
   const { data: quotes } = await createAdminClient()
     .from("quotes").select("id,number,title,setup_total_pence,monthly_total_pence")
-    .eq("status", "accepted").ilike("recipient_email", profile.email);
+    .eq("status", "accepted").eq("recipient_email", profile.email.toLowerCase());
   const current = subs?.find((s) => ["active", "trialing", "past_due"].includes(s.status));
   const highlighted = typeof sp.plan === "string" ? sp.plan : null;
   const payable = (quotes ?? []).filter((q) => !subs?.some((s) => s.status === "active" && s.monthly_pence === q.monthly_total_pence));
